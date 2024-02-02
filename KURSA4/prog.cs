@@ -18,6 +18,17 @@ namespace KURSA4
     public partial class prog : Form
     {
         int userid;
+        char[] characters = new char[] {'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И',
+                                        'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т',
+                                        'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ь', 'Ы', 'Ъ',
+                                        'Э', 'Ю', 'Я',
+
+                                        'а', 'б', 'в', 'г', 'д', 'е', 'ё', 'ж', 'з', 'и',
+                                        'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т',
+                                        'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ь', 'ы', 'ъ',
+                                        'э', 'ю', 'я',
+
+                                        ' ', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', ',', '.', '"', '!', '?'};
 
         public prog(int id)
         {
@@ -30,123 +41,140 @@ namespace KURSA4
             Application.Exit();
         }
 
-        char[] characters = new char[] { '#', 'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И',
-                                                        'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С',
-                                                        'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ь', 'Ы', 'Ъ',
-                                                        'Э', 'Ю', 'Я', ' ', '1', '2', '3', '4', '5', '6', '7',
-                                                        '8', '9', '0' };
-
         //зашифровать
         private void buttonEncrypt_Click(object sender, EventArgs e)
         {
-            if ((textBox_p.Text.Length > 0) && (textBox_q.Text.Length > 0))
+            if (!long.TryParse(textBox_p.Text, out long p) ||
+                !long.TryParse(textBox_q.Text, out long q) ||
+                !IsTheNumberSimple(p) || !IsTheNumberSimple(q))
             {
-                long p = Convert.ToInt64(textBox_p.Text);
-                long q = Convert.ToInt64(textBox_q.Text);
-
-                if (IsTheNumberSimple(p) && IsTheNumberSimple(q))
-                {
-                    string s = "";
-
-                    StreamReader sr = new StreamReader("in.txt");
-
-                    while (!sr.EndOfStream)
-                    {
-                        s += sr.ReadLine();
-                    }
-
-                    sr.Close();
-
-                    s = s.ToUpper();
-
-                    long n = p * q;
-                    long m = (p - 1) * (q - 1);
-                    long d = Calculate_d(m);
-                    long e_ = Calculate_e(d, m);
-
-                    List<string> result = RSA_Endoce(s, e_, n);
-
-                    StreamWriter sw = new StreamWriter("out1.txt");
-                    foreach (string item in result)
-                        sw.WriteLine(item);
-                    sw.Close();
-
-                    textBox_d.Text = d.ToString();
-                    textBox_n.Text = n.ToString();
-
-                    Process.Start("out1.txt");
-                }
-                else
-                    MessageBox.Show("p или q - не простые числа!");
+                MessageBox.Show("Введите корректные простые числа для p и q!");
+                return;
             }
-            else
-                MessageBox.Show("Введите p и q!");
+
+            try
+            {
+                string textToEncrypt;
+                using (StreamReader sr = new StreamReader("in.txt"))
+                {
+                    textToEncrypt = sr.ReadToEnd();
+                }
+
+                long n = p * q;
+                long m = (p - 1) * (q - 1);
+                long e_ = Calculate_e();
+                long d = Calculate_d(e_, m);
+
+                List<string> encryptedText = RSA_Encode(textToEncrypt, e_, n);
+
+                using (StreamWriter sw = new StreamWriter("out1.txt"))
+                {
+                    foreach (string item in encryptedText)
+                        sw.WriteLine(item);
+                }
+
+                textBox_d.Text = d.ToString();
+                textBox_n.Text = n.ToString();
+                Process.Start("out1.txt");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при чтении или записи файла: {ex.Message}");
+            }
         }
 
-        //расшифровать
         private void buttonDecipher_Click(object sender, EventArgs e)
         {
-            if ((textBox_d.Text.Length > 0) && (textBox_n.Text.Length > 0))
+            if (!long.TryParse(textBox_d.Text, out long d) ||
+                !long.TryParse(textBox_n.Text, out long n))
             {
-                long d = Convert.ToInt64(textBox_d.Text);
-                long n = Convert.ToInt64(textBox_n.Text);
+                MessageBox.Show("Введите корректные значения для d и n!");
+                return;
+            }
 
-                List<string> input = new List<string>();
-
-                StreamReader sr = new StreamReader("out1.txt");
-
-                while (!sr.EndOfStream)
+            try
+            {
+                List<string> encryptedText;
+                using (StreamReader sr = new StreamReader("out1.txt"))
                 {
-                    input.Add(sr.ReadLine());
+                    encryptedText = new List<string>();
+                    while (!sr.EndOfStream)
+                    {
+                        encryptedText.Add(sr.ReadLine());
+                    }
                 }
 
-                sr.Close();
+                string decryptedText = RSA_Decode(encryptedText, d, n);
 
-                string result = RSA_Dedoce(input, d, n);
-
-                StreamWriter sw = new StreamWriter("out2.txt");
-                sw.WriteLine(result);
-                sw.Close();
+                using (StreamWriter sw = new StreamWriter("out2.txt"))
+                {
+                    sw.WriteLine(decryptedText);
+                }
 
                 Process.Start("out2.txt");
             }
-            else
-                MessageBox.Show("Введите секретный ключ!");
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при чтении или записи файла: {ex.Message}");
+            }
         }
+
 
         //проверка: простое ли число?
         private bool IsTheNumberSimple(long n)
         {
-            if (n < 2)
-                return false;
+            if (n < 2) return false;
+            if (n == 2) return true;
+            if (n % 2 == 0) return false;
 
-            if (n == 2)
-                return true;
+            long d = n - 1;
+            int s = 0;
 
-            for (long i = 2; i < n; i++)
-                if (n % i == 0)
-                    return false;
+            while (d % 2 == 0)
+            {
+                d /= 2;
+                s += 1;
+            }
+
+            Random rand = new Random();
+            for (int i = 0; i < 10; i++)
+            {
+                long a = (long)(rand.NextDouble() * (n - 2)) + 1;
+                BigInteger x = BigInteger.ModPow(a, d, n);
+                if (x == 1 || x == n - 1)
+                    continue;
+
+                for (int r = 1; r < s; r++)
+                {
+                    x = BigInteger.ModPow(x, 2, n);
+                    if (x == 1) return false;
+                    if (x == n - 1) break;
+                }
+
+                if (x != n - 1) return false;
+            }
 
             return true;
         }
 
-        //зашифровать
-        private List<string> RSA_Endoce(string s, long e, long n)
+        // Зашифровать
+        private List<string> RSA_Encode(string s, long e, long n)
         {
             List<string> result = new List<string>();
-
             BigInteger bi;
+            BigInteger n_ = new BigInteger(n);
 
             for (int i = 0; i < s.Length; i++)
             {
                 int index = Array.IndexOf(characters, s[i]);
+                if (index == -1)
+                {
+                    // Обработка неизвестного символа
+                    continue; // или добавьте логику для обработки этого случая
+                }
 
                 bi = new BigInteger(index);
-                bi = BigInteger.Pow(bi, (int)e);
-
-                BigInteger n_ = new BigInteger((int)n);
-
-                bi = bi % n_;
+                bi = BigInteger.ModPow(bi, e, n_);
 
                 result.Add(bi.ToString());
             }
@@ -154,23 +182,23 @@ namespace KURSA4
             return result;
         }
 
-        //расшифровать
-        private string RSA_Dedoce(List<string> input, long d, long n)
+        // Расшифровать
+        private string RSA_Decode(List<string> input, long d, long n)
         {
             string result = "";
-
-            BigInteger bi;
+            BigInteger n_ = new BigInteger(n);
 
             foreach (string item in input)
             {
-                bi = new BigInteger(Convert.ToDouble(item));
-                bi = BigInteger.Pow(bi, (int)d);
+                BigInteger bi = BigInteger.Parse(item);
+                bi = BigInteger.ModPow(bi, d, n_);
 
-                BigInteger n_ = new BigInteger((int)n);
-
-                bi = bi % n_;
-
-                int index = Convert.ToInt32(bi.ToString());
+                int index = (int)bi;
+                if (index < 0 || index >= characters.Length)
+                {
+                    // Обработка неверного индекса
+                    continue; // или добавьте логику для обработки этого случая
+                }
 
                 result += characters[index].ToString();
             }
@@ -178,35 +206,20 @@ namespace KURSA4
             return result;
         }
 
-        //вычисление параметра d. d должно быть взаимно простым с m
-        private long Calculate_d(long m)
+        private long Calculate_e()
         {
-            long d = m - 1;
-
-            for (long i = 2; i <= m; i++)
-                if ((m % i == 0) && (d % i == 0)) //если имеют общие делители
-                {
-                    d--;
-                    i = 1;
-                }
-
-            return d;
+            return 65537; // Часто используемое значение e в RSA
         }
 
-        //вычисление параметра e
-        private long Calculate_e(long d, long m)
+        // Метод для вычисления d
+        private long Calculate_d(long e, long m)
         {
-            long e = 10;
-
-            while (true)
+            long d = 1;
+            while ((d * e) % m != 1 || d == e)
             {
-                if ((e * d) % m == 1)
-                    break;
-                else
-                    e++;
+                d++;
             }
-
-            return e;
+            return d;
         }
         private void button1_Click_1(object sender, EventArgs e)
         {
